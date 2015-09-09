@@ -30,6 +30,7 @@
 
 import sys
 import os
+import argparse
 # this will be replaced at install time
 
 INSTALLED_BASE_DIR = "@ INSTALLED_BASE_DIR @"
@@ -39,12 +40,24 @@ if os.path.exists(INSTALLED_BASE_DIR):
     project_basedir = INSTALLED_BASE_DIR
 else:
     project_basedir = os.path.abspath(os.path.dirname(os.path.dirname(
-                                            os.path.realpath(sys.argv[0]))))
+        os.path.realpath(sys.argv[0]))))
 
 if project_basedir not in sys.path:
     sys.path.insert(0, project_basedir)
 
 from pomodoro import visual
+parser = argparse.ArgumentParser(description="Start pomodoro style "
+                                 "timer")
+parser.add_argument('--work', dest='work', type=int, default=25,
+                    help="Work time in minutes")
+parser.add_argument('--short', default=5, dest='short', type=int,
+                    help="Short break in minutes")
+parser.add_argument('--long', default=15, dest='long', type=int,
+                    help="Long break in minutes")
+args = parser.parse_args()
+print (args)
 
-indicator = visual.PomodoroIndicator()
+
+indicator = visual.PomodoroIndicator(args.work, args.short, args.long)
+import pdb; pdb.set_trace()  # XXX BREAKPOINT
 indicator.main()
