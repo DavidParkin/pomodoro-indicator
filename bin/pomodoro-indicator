@@ -59,5 +59,4 @@ print (args)
 
 
 indicator = visual.PomodoroIndicator(args.work, args.short, args.long)
-import pdb; pdb.set_trace()  # XXX BREAKPOINT
 indicator.main()

@@ -38,7 +38,9 @@ Pomodoro's indicator
 # ICONS
 # http://www.softicons.com/free-icons/food-drinks-icons/veggies-icons-by-icon-icon/tomato-icon
 
+
 class PomodoroOSDNotificator:
+
     def __init__(self):
         self.icon_directory = configuration.icon_directory()
 
@@ -50,12 +52,13 @@ class PomodoroOSDNotificator:
 
     def notificate_with_sound(self, state):
         pynotify.init("icon-summary-body")
+        #print state
         message = self.generate_message(state)
         osd_box = pynotify.Notification(
-                "Pomodoro",
-                message,
-                self.big_icon()
-                )
+            "Pomodoro",
+            message,
+            self.big_icon()
+        )
         osd_box.show()
 
     def generate_message(self, status):
@@ -63,29 +66,35 @@ class PomodoroOSDNotificator:
             message = "You should start working."
         elif status == pomodoro_state.RESTING_STATE:
             message = "You can take a break now."
+        elif status == pomodoro_state.LONG_RESTING_STATE:
+            message = "You can take a longer break now."
+
         return message
 
+
 class PomodoroIndicator:
-    def __init__(self):
-        self.pomodoro = pomodoro_state.PomodoroMachine()
+
+    def __init__(self, work, short, longer):
+        self.pomodoro = pomodoro_state.PomodoroMachine(work, short, longer)
         self.notificator = PomodoroOSDNotificator()
         self.icon_directory = configuration.icon_directory()
         self.ind = appindicator.Indicator("pomodoro-indicator",
-                                           self.idle_icon(),
-                                           appindicator.CATEGORY_APPLICATION_STATUS)
+                                          self.idle_icon(),
+                                          appindicator.CATEGORY_APPLICATION_STATUS)
         self.ind.set_status(appindicator.STATUS_ACTIVE)
         self.ind.set_attention_icon("new-messages-red")
-        #self.ind.set_label("25:00")
+        self.ind.set_label("25:00")
 
         self.menu_setup()
         self.ind.set_menu(self.menu)
+
         self.timer_id = None
 
     def idle_icon(self):
-        return self.icon_directory + "tomato_grey.png"#"indicator-messages"
+        return self.icon_directory + "tomato_grey.png"  # "indicator-messages"
 
     def active_icon(self):
-        return self.icon_directory + "tomato_24.png"#"indicator-messages"
+        return self.icon_directory + "tomato_24.png"  # "indicator-messages"
 
     def menu_setup(self):
         self.menu = gtk.Menu()
@@ -102,16 +111,17 @@ class PomodoroIndicator:
         self.quit_item = gtk.MenuItem("Quit")
 
         self.state_visible_menu_items = {
-            pomodoro_state.WAITING_STATE : [self.start_item],
-            pomodoro_state.WORKING_STATE : [self.pause_item, self.stop_item],
-            pomodoro_state.RESTING_STATE : [self.pause_item, self.stop_item],
-            pomodoro_state.PAUSED_STATE  : [self.resume_item, self.stop_item]
+            pomodoro_state.WAITING_STATE: [self.start_item],
+            pomodoro_state.WORKING_STATE: [self.pause_item, self.stop_item],
+            pomodoro_state.RESTING_STATE: [self.pause_item, self.stop_item],
+            pomodoro_state.LONG_RESTING_STATE: [self.pause_item, self.stop_item],
+            pomodoro_state.PAUSED_STATE: [self.resume_item, self.stop_item]
         }
 
         self.available_states = pomodoro_state.AVAILABLE_STATES
 
-        self.hidable_menu_items =  [self.start_item, self.pause_item,
-                                    self.resume_item, self.stop_item]
+        self.hidable_menu_items = [self.start_item, self.pause_item,
+                                   self.resume_item, self.stop_item]
 
         self.start_item.connect("activate", self.start)
         self.pause_item.connect("activate", self.pause)
@@ -165,6 +175,9 @@ class PomodoroIndicator:
             self.ind.set_status(appindicator.STATUS_ACTIVE)
         elif self.current_state() == pomodoro_state.RESTING_STATE:
             self.ind.set_status(appindicator.STATUS_ATTENTION)
+        elif self.current_state() == pomodoro_state.LONG_RESTING_STATE:
+            self.ind.set_status(appindicator.STATUS_ATTENTION)
+
         self.notificator.notificate_with_sound(self.current_state())
 
     # Methods that interacts with the PomodoroState collaborator.
@@ -178,6 +191,8 @@ class PomodoroIndicator:
 
     def current_state(self):
         for state in self.available_states:
+            #print self.available_states
+            #print state
             if self.pomodoro.in_this_state(state):
                 return state
 

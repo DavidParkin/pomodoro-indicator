@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
-
+import traceback, sys
 #
 # Copyright 2011 malev.com.ar
 #
@@ -51,13 +51,17 @@ times.
 WAITING_STATE = "waiting"
 WORKING_STATE = "working"
 RESTING_STATE = "resting"
+LONG_RESTING_STATE = "longresting"
 PAUSED_STATE = "paused"
 MAX_RESTING_TIME = 300
 MAX_WORKING_TIME = 1500
-AVAILABLE_STATES = [WAITING_STATE, WORKING_STATE, RESTING_STATE, PAUSED_STATE]
+AVAILABLE_STATES = [WAITING_STATE, WORKING_STATE, RESTING_STATE, LONG_RESTING_STATE, PAUSED_STATE]
+
 
 class PomodoroState(object):
+
     """Base state. This is to share functionality"""
+
     def current_state(self):
         """Scan the dial to the next station"""
         return self.name
@@ -97,6 +101,9 @@ class PomodoroState(object):
     def waiting(self):
         return False
 
+    def longresting(self):
+        return False
+
     def running_next_second(self):
         self.elapsed_time += 1
         if self.elapsed_time >= self.max_time:
@@ -110,8 +117,11 @@ class PomodoroState(object):
         self.pomodoro.previous_elapsed_time = self.pomodoro.state.elapsed_time
         self.pomodoro.state = self.pomodoro.paused_state
 
+
 class WaitingState(PomodoroState):
+
     """Idle state. When is waiting to start to work."""
+
     def __init__(self, pomodoro):
         self.pomodoro = pomodoro
         self.elapsed_time = 0
@@ -127,16 +137,28 @@ class WaitingState(PomodoroState):
         self.pomodoro.state = self.pomodoro.working_state
         self.pomodoro.state.elapsed_time = 0
 
+
 class WorkingState(PomodoroState):
+
+    sessions = 0
+
     """Working state. Should last 25 minutes."""
-    def __init__(self, pomodoro):
+
+    def __init__(self, pomodoro, work):
         self.pomodoro = pomodoro
         self.name = WORKING_STATE
         self.max_time = MAX_WORKING_TIME
+        self.max_time = work
         self.elapsed_time = 0
 
     def next_state(self):
-        self.pomodoro.state = self.pomodoro.resting_state
+        WorkingState.sessions += 1
+        print 'Sessions completed ' + repr(WorkingState.sessions)
+        if WorkingState.sessions > 3:
+            WorkingState.sessions = 0
+            self.pomodoro.state = self.pomodoro.longresting_state
+        else:
+            self.pomodoro.state = self.pomodoro.resting_state
 
     def pause(self):
         self.pause_it()
@@ -147,11 +169,14 @@ class WorkingState(PomodoroState):
     def working(self):
         return True
 
+
 class RestingState(PomodoroState):
-    def __init__(self, pomodoro):
+
+    def __init__(self, pomodoro, short):
         self.pomodoro = pomodoro
         self.name = RESTING_STATE
         self.max_time = MAX_RESTING_TIME
+        self.max_time = short
 
     def next_state(self):
         self.pomodoro.state = self.pomodoro.working_state
@@ -165,7 +190,32 @@ class RestingState(PomodoroState):
     def resting(self):
         return True
 
+
+class LongRestingState(PomodoroState):
+
+    def __init__(self, pomodoro, longer):
+        self.pomodoro = pomodoro
+        self.name = LONG_RESTING_STATE
+        self.max_time = MAX_RESTING_TIME
+        self.max_time = longer
+
+    def next_state(self):
+        print "long rest"
+
+        self.pomodoro.state = self.pomodoro.working_state
+
+    def pause(self):
+        self.pause_it()
+
+    def next_second(self):
+        return self.running_next_second()
+
+    def longresting(self):
+        return True
+
+
 class PausedState(PomodoroState):
+
     def __init__(self, pomodoro):
         self.pomodoro = pomodoro
         self.elapsed_time = 0
@@ -181,11 +231,14 @@ class PausedState(PomodoroState):
     def paused(self):
         return True
 
+
 class PomodoroMachine(object):
-    def __init__(self):
+
+    def __init__(self, work, short, longer):
         self.waiting_state = WaitingState(self)
-        self.working_state = WorkingState(self)
-        self.resting_state = RestingState(self)
+        self.working_state = WorkingState(self, work)
+        self.resting_state = RestingState(self, short)
+        self.longresting_state = LongRestingState(self, longer)
         self.paused_state = PausedState(self)
         self.previous_state = None
         self.previous_elapsed_time = 0
@@ -222,7 +275,8 @@ class PomodoroMachine(object):
         return self.state.working()
 
     def show_stop_button(self):
-        return self.state.working() or self.state.resting() or self.state.paused()
+        return self.state.working() or self.state.resting()  \
+            or self.state.paused()
 
     def show_pause_button(self):
         return self.state.working() or self.state.resting()
