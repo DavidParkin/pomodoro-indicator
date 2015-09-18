@@ -2,5 +2,6 @@
 *.pyc
 *.mo
 *.po~
+*.swp
 debian/
 

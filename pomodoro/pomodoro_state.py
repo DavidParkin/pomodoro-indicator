@@ -222,6 +222,7 @@ class PausedState(PomodoroState):
         self.name = PAUSED_STATE
 
     def resume(self):
+        print "paused class"
         self.next_state()
 
     def next_state(self):

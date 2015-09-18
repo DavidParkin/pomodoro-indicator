@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
 #
 # Copyright 2011 malev.com.ar
@@ -43,25 +43,50 @@ class PomodoroOSDNotificator:
 
     def __init__(self):
         self.icon_directory = configuration.icon_directory()
+        pynotify.init("icon-summary-body")
 
     def beep(self):
         pass
 
-    def big_icon(self):
+    def big_red_icon(self):
         return self.icon_directory + "tomato_32.png"
 
-    def notificate_with_sound(self, state):
-        pynotify.init("icon-summary-body")
-        #print state
+    def outer_resume(self, osd_box, action):
+        print "Found outer callback"
+        print action
+        stateResume()
+        print "back from resume"
+        osd_box.close()
+        global loop
+        loop.quit()
+
+    def notificate_with_sound(self, state, unpause):
         message = self.generate_message(state)
+        global stateResume
+        stateResume = unpause
+
         osd_box = pynotify.Notification(
             "Pomodoro",
             message,
-            self.big_icon()
+            self.big_red_icon()
         )
-        osd_box.show()
+        print PomodoroIndicator.gpause
+        print state
+        if PomodoroIndicator.gpause is True:
+            osd_box.add_action("action_go", "Ready?",
+                               self.outer_resume)
+            osd_box.set_timeout(pynotify.EXPIRES_NEVER)
+
+            osd_box.show()
+            #gobject.MainLoop().run()
+            global loop
+            loop = gobject.MainLoop()
+            loop.run()
+        else:
+            osd_box.show()
 
     def generate_message(self, status):
+        message = status            # dodgy message
         if status == pomodoro_state.WORKING_STATE:
             message = "You should start working."
         elif status == pomodoro_state.RESTING_STATE:
@@ -74,24 +99,37 @@ class PomodoroOSDNotificator:
 
 class PomodoroIndicator:
 
-    def __init__(self, work, short, longer):
+    gpause = False
+
+    def __init__(self, work, short, longer, start, pause):
+        PomodoroIndicator.gpause = pause
         self.pomodoro = pomodoro_state.PomodoroMachine(work, short, longer)
         self.notificator = PomodoroOSDNotificator()
         self.icon_directory = configuration.icon_directory()
-        self.ind = appindicator.Indicator("pomodoro-indicator",
-                                          self.idle_icon(),
-                                          appindicator.CATEGORY_APPLICATION_STATUS)
+        self.ind = appindicator.Indicator(
+            "pomodoro-indicator",
+            self.idle_icon(),
+            appindicator.CATEGORY_APPLICATION_STATUS)
         self.ind.set_status(appindicator.STATUS_ACTIVE)
         self.ind.set_attention_icon("new-messages-red")
         self.ind.set_label("25:00")
+        self.ind.set_attention_icon(self.idle_icon())
 
         self.menu_setup()
         self.ind.set_menu(self.menu)
 
         self.timer_id = None
 
-    def idle_icon(self):
+        if start is True:
+            self.start_timer()
+            self.pomodoro.start()
+            self.redraw_menu()
+
+    def attention_icon(self):
         return self.icon_directory + "tomato_grey.png"  # "indicator-messages"
+
+    def idle_icon(self):
+        return self.icon_directory + "tomato_green_24.png"  # "ind...-messages"
 
     def active_icon(self):
         return self.icon_directory + "tomato_24.png"  # "indicator-messages"
@@ -114,7 +152,8 @@ class PomodoroIndicator:
             pomodoro_state.WAITING_STATE: [self.start_item],
             pomodoro_state.WORKING_STATE: [self.pause_item, self.stop_item],
             pomodoro_state.RESTING_STATE: [self.pause_item, self.stop_item],
-            pomodoro_state.LONG_RESTING_STATE: [self.pause_item, self.stop_item],
+            pomodoro_state.LONG_RESTING_STATE: [self.pause_item,
+                                                self.stop_item],
             pomodoro_state.PAUSED_STATE: [self.resume_item, self.stop_item]
         }
 
@@ -178,7 +217,14 @@ class PomodoroIndicator:
         elif self.current_state() == pomodoro_state.LONG_RESTING_STATE:
             self.ind.set_status(appindicator.STATUS_ATTENTION)
 
-        self.notificator.notificate_with_sound(self.current_state())
+        if PomodoroIndicator.gpause is True:
+            #self.pomodoro.pause()
+            self.toggle_pause()
+            #self.pomodoro.pause()
+            #self.redraw_menu()
+        self.notificator.notificate_with_sound(self.current_state(),
+                                               self.toggle_pause)
+
 
     # Methods that interacts with the PomodoroState collaborator.
     def update_timer(self):
@@ -186,30 +232,42 @@ class PomodoroIndicator:
         changed = self.pomodoro.next_second()
         self.change_timer_menu_item_label(self.pomodoro.elapsed_time())
         if changed:
+            print ("update_timer changed")
             self.generate_notification()
             self.redraw_menu()
 
     def current_state(self):
         for state in self.available_states:
-            #print self.available_states
-            #print state
             if self.pomodoro.in_this_state(state):
                 return state
 
     def start(self, widget, data=None):
         self.start_timer()
         self.pomodoro.start()
+        self.ind.set_icon(self.active_icon())
         self.redraw_menu()
 
-    def pause(self, widget, data=None):
-        self.start_timer()
-        self.pomodoro.start()
-        self.redraw_menu()
-
-    def resume(self, widget, data=None):
+    def pause(self, widget=None, data=None):
         self.stop_timer()
+        self.pomodoro.pause()
+        self.redraw_menu()
+
+    def resume(self, widget=None, data=None):
+        # assume this can only be used by menu
+        # self.stop_timer()
+        self.start_timer()
         self.pomodoro.resume()
         self.redraw_menu()
+
+    def toggle_pause(self):
+        print ("toggle_pause " + self.current_state())
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        if self.current_state() != "paused":
+            self.pause()
+        else:
+            print ("toggle_pause_else " + self.current_state())
+            self.resume()
+        print ("toggle_pause_end " + self.current_state())
 
     def stop(self, widget, data=None):
         self.stop_timer()
