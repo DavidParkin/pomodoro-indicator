@@ -224,10 +224,13 @@ class PomodoroIndicator:
             #self.redraw_menu()
         self.notificator.notificate_with_sound(self.current_state(),
                                                self.toggle_pause)
+        # self.notificator.notificate_with_sound(self.current_state(),
+        #                                        self.toggle_pause)
 
 
-    # Methods that interacts with the PomodoroState collaborator.
+    # Methods that interact with the PomodoroState collaborator.
     def update_timer(self):
+        print "update_timer()"
         self.start_timer()
         changed = self.pomodoro.next_second()
         self.change_timer_menu_item_label(self.pomodoro.elapsed_time())
@@ -276,6 +279,7 @@ class PomodoroIndicator:
 
     def start_timer(self):
         self.timer_id = gobject.timeout_add(1000, self.update_timer)
+        print ("start_timer " + repr(self.timer_id))
 
     def stop_timer(self):
         gobject.source_remove(self.timer_id)

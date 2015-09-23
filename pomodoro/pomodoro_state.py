@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
-import traceback, sys
 #
 # Copyright 2011 malev.com.ar
 #
@@ -48,6 +47,8 @@ times.
 >>> machine.current_state()
 'Paused'
 """
+import traceback, sys
+
 WAITING_STATE = "waiting"
 WORKING_STATE = "working"
 RESTING_STATE = "resting"
@@ -234,8 +235,10 @@ class PausedState(PomodoroState):
 
 
 class PomodoroMachine(object):
+    """A docsting in class."""
 
     def __init__(self, work, short, longer):
+        """A docstring in init."""
         self.waiting_state = WaitingState(self)
         self.working_state = WorkingState(self, work)
         self.resting_state = RestingState(self, short)
