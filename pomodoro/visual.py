@@ -24,6 +24,10 @@
 # License version 3 and version 2.1 along with this program.  If not, see
 # <http://www.gnu.org/licenses/>
 
+"""
+Pomodoro's indicator
+"""
+
 import gobject
 import gtk
 import appindicator
@@ -32,14 +36,13 @@ import sys
 import pomodoro_state
 import configuration
 
-"""
-Pomodoro's indicator
-"""
 # ICONS
 # http://www.softicons.com/free-icons/food-drinks-icons/veggies-icons-by-icon-icon/tomato-icon
 
 
 class PomodoroOSDNotificator:
+
+    loop = None
 
     def __init__(self):
         self.icon_directory = configuration.icon_directory()
@@ -51,16 +54,15 @@ class PomodoroOSDNotificator:
     def big_red_icon(self):
         return self.icon_directory + "tomato_32.png"
 
-    def outer_resume(self, osd_box, action):
-        print "Found outer callback"
-        print action
-        stateResume()
-        print "back from resume"
-        osd_box.close()
-        global loop
-        loop.quit()
+    def stateResume(self):
+        pass
 
     def notificate_with_sound(self, state, unpause):
+        def resume(osd_box, action):
+            stateResume()
+            osd_box.close()
+            global loop
+            loop.quit()
         message = self.generate_message(state)
         global stateResume
         stateResume = unpause
@@ -70,15 +72,12 @@ class PomodoroOSDNotificator:
             message,
             self.big_red_icon()
         )
-        print PomodoroIndicator.gpause
-        print state
         if PomodoroIndicator.gpause is True:
             osd_box.add_action("action_go", "Ready?",
-                               self.outer_resume)
+                               resume)
             osd_box.set_timeout(pynotify.EXPIRES_NEVER)
 
             osd_box.show()
-            #gobject.MainLoop().run()
             global loop
             loop = gobject.MainLoop()
             loop.run()
@@ -119,6 +118,8 @@ class PomodoroIndicator:
         self.ind.set_menu(self.menu)
 
         self.timer_id = None
+
+        pomodoro_state.transition_blocked = pause
 
         if start is True:
             self.start_timer()
@@ -218,24 +219,18 @@ class PomodoroIndicator:
             self.ind.set_status(appindicator.STATUS_ATTENTION)
 
         if PomodoroIndicator.gpause is True:
-            #self.pomodoro.pause()
-            self.toggle_pause()
-            #self.pomodoro.pause()
-            #self.redraw_menu()
+            self.stop_timer()
         self.notificator.notificate_with_sound(self.current_state(),
-                                               self.toggle_pause)
+                                               self.start_timer)
         # self.notificator.notificate_with_sound(self.current_state(),
         #                                        self.toggle_pause)
 
-
     # Methods that interact with the PomodoroState collaborator.
     def update_timer(self):
-        print "update_timer()"
         self.start_timer()
         changed = self.pomodoro.next_second()
         self.change_timer_menu_item_label(self.pomodoro.elapsed_time())
         if changed:
-            print ("update_timer changed")
             self.generate_notification()
             self.redraw_menu()
 
@@ -256,33 +251,28 @@ class PomodoroIndicator:
         self.redraw_menu()
 
     def resume(self, widget=None, data=None):
-        # assume this can only be used by menu
-        # self.stop_timer()
         self.start_timer()
         self.pomodoro.resume()
         self.redraw_menu()
 
     def toggle_pause(self):
-        print ("toggle_pause " + self.current_state())
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if self.current_state() != "paused":
             self.pause()
         else:
-            print ("toggle_pause_else " + self.current_state())
             self.resume()
-        print ("toggle_pause_end " + self.current_state())
 
     def stop(self, widget, data=None):
         self.stop_timer()
+        pynotify.Notification.close
         self.pomodoro.stop()
         self.redraw_menu()
 
     def start_timer(self):
         self.timer_id = gobject.timeout_add(1000, self.update_timer)
-        print ("start_timer " + repr(self.timer_id))
 
     def stop_timer(self):
-        gobject.source_remove(self.timer_id)
+        if self.timer_id:
+            gobject.source_remove(self.timer_id)
         self.timer_id = None
 
     def main(self):

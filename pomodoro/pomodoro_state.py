@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 #
 # Copyright 2011 malev.com.ar
 #
@@ -47,7 +47,6 @@ times.
 >>> machine.current_state()
 'Paused'
 """
-import traceback, sys
 
 WAITING_STATE = "waiting"
 WORKING_STATE = "working"
@@ -56,7 +55,10 @@ LONG_RESTING_STATE = "longresting"
 PAUSED_STATE = "paused"
 MAX_RESTING_TIME = 300
 MAX_WORKING_TIME = 1500
-AVAILABLE_STATES = [WAITING_STATE, WORKING_STATE, RESTING_STATE, LONG_RESTING_STATE, PAUSED_STATE]
+AVAILABLE_STATES = [WAITING_STATE, WORKING_STATE,
+                    RESTING_STATE, LONG_RESTING_STATE, PAUSED_STATE]
+
+transition_blocked = False
 
 
 class PomodoroState(object):
@@ -89,6 +91,8 @@ class PomodoroState(object):
     def stop(self):
         self.pomodoro.state = self.pomodoro.waiting_state
         self.pomodoro.state.elapsed_time = 0
+        self.pomodoro.state.sessions = 0
+        WorkingState.sessions = 0
 
     def working(self):
         return False
@@ -153,8 +157,9 @@ class WorkingState(PomodoroState):
         self.elapsed_time = 0
 
     def next_state(self):
+        super(WorkingState, self).next_state()
         WorkingState.sessions += 1
-        print 'Sessions completed ' + repr(WorkingState.sessions)
+        # print 'Sessions completed ' + repr(WorkingState.sessions)
         if WorkingState.sessions > 3:
             WorkingState.sessions = 0
             self.pomodoro.state = self.pomodoro.longresting_state
@@ -201,8 +206,6 @@ class LongRestingState(PomodoroState):
         self.max_time = longer
 
     def next_state(self):
-        print "long rest"
-
         self.pomodoro.state = self.pomodoro.working_state
 
     def pause(self):
@@ -223,7 +226,6 @@ class PausedState(PomodoroState):
         self.name = PAUSED_STATE
 
     def resume(self):
-        print "paused class"
         self.next_state()
 
     def next_state(self):
