@@ -33,8 +33,11 @@ import gtk
 import appindicator
 import pynotify
 import sys
+import wave
+import pyaudio
 import pomodoro_state
 import configuration
+#import pyglet
 
 # ICONS
 # http://www.softicons.com/free-icons/food-drinks-icons/veggies-icons-by-icon-icon/tomato-icon
@@ -48,8 +51,37 @@ class PomodoroOSDNotificator:
         self.icon_directory = configuration.icon_directory()
         pynotify.init("icon-summary-body")
 
+    def alarm_sound(self):
+        return self.icon_directory + "bells_1.wav"
+
     def beep(self):
-        pass
+        # define stream chunk
+        chunk = 1024
+
+        # open a wav format music
+        snd_path = self.alarm_sound()
+        f = wave.open(snd_path, "rb")
+        # instantiate PyAudio
+        p = pyaudio.PyAudio()
+        # open stream
+        stream = p.open(format=p.get_format_from_width(f.getsampwidth()),
+                        channels=f.getnchannels(),
+                        rate=f.getframerate(),
+                        output=True)
+        # read data
+        data = f.readframes(chunk)
+
+        # paly stream
+        while data != '':
+            stream.write(data)
+            data = f.readframes(chunk)
+
+        # stop stream
+        stream.stop_stream()
+        stream.close()
+
+        # close PyAudio
+        p.terminate()
 
     def big_red_icon(self):
         return self.icon_directory + "tomato_32.png"
@@ -72,6 +104,7 @@ class PomodoroOSDNotificator:
             message,
             self.big_red_icon()
         )
+        self.beep()
         if PomodoroIndicator.gpause is True:
             osd_box.add_action("action_go", "Ready?",
                                resume)
@@ -124,6 +157,7 @@ class PomodoroIndicator:
         if start is True:
             self.start_timer()
             self.pomodoro.start()
+            self.ind.set_icon(self.active_icon())
             self.redraw_menu()
 
     def attention_icon(self):

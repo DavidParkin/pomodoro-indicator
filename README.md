@@ -1,15 +1,13 @@
 Pomodoro indicator
 ==================
-App indicator for Ubuntu. The idea is to use this super technique in your ubuntu.
+App indicator for Linux. Derived from a work by malev [blog](http://malev.com.ar)  
 
 TODO
 ----
-* Add sound message. Have no clue how to start either of this tasks.
 * Maybe adding a counter into the indicator's bar. (Not sure about this).
 
 More information
 ----------------
-You can find more info about me and my projects on my personal [blog](http://malev.com.ar) or my [fellowship blog](http://codingnews.info).
 
 License
 -------
