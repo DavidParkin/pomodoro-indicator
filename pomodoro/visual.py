@@ -28,6 +28,7 @@
 Pomodoro's indicator
 """
 
+import os
 import gobject
 import gtk
 import appindicator
@@ -37,7 +38,7 @@ import wave
 import pyaudio
 import pomodoro_state
 import configuration
-#import pyglet
+from taskw import TaskWarriorShellout as tw
 
 # ICONS
 # http://www.softicons.com/free-icons/food-drinks-icons/veggies-icons-by-icon-icon/tomato-icon
@@ -147,6 +148,17 @@ class PomodoroIndicator:
         self.ind.set_label("25:00")
         self.ind.set_attention_icon(self.idle_icon())
 
+        self.tw_installed = False
+
+        home = os.path.expanduser("~/.taskrc")
+        if os.path.exists(home):
+            self.tw_installed = True
+            test = os.path.expanduser("~/.taskrc_test")
+            if os.path.exists(test):
+                self.w = tw(config_filename="~/.taskrc_test")
+            else:
+                self.w = tw()
+
         self.menu_setup()
         self.ind.set_menu(self.menu)
 
@@ -173,6 +185,7 @@ class PomodoroIndicator:
         self.menu = gtk.Menu()
         self.separator1 = gtk.SeparatorMenuItem()
         self.separator2 = gtk.SeparatorMenuItem()
+        self.separator3 = gtk.SeparatorMenuItem()
         self.current_state_item = gtk.MenuItem("Waiting")
         self.timer_item = gtk.MenuItem("00:00")
 
@@ -182,6 +195,7 @@ class PomodoroIndicator:
         self.resume_item = gtk.MenuItem("Resume")
         self.stop_item = gtk.MenuItem("Stop")
         self.quit_item = gtk.MenuItem("Quit")
+        self.tw_item = gtk.MenuItem("Task")
 
         self.state_visible_menu_items = {
             pomodoro_state.WAITING_STATE: [self.start_item],
@@ -202,6 +216,7 @@ class PomodoroIndicator:
         self.resume_item.connect("activate", self.resume)
         self.stop_item.connect("activate", self.stop)
         self.quit_item.connect("activate", self.quit)
+        self.tw_item.connect("activate", self.tw_dialog)
 
         self.menu_items = [
             self.current_state_item,
@@ -212,12 +227,18 @@ class PomodoroIndicator:
             self.resume_item,
             self.stop_item,
             self.separator2,
+            self.tw_item,
+            self.separator3,
             self.quit_item
         ]
-
+        self.tw = True
         for item in self.menu_items:
             item.show()
             self.menu.append(item)
+
+        if self.tw_installed is False:
+            self.tw_item.hide()
+            self.separator3.hide()
         self.redraw_menu()
 
     def button_pushed(self, widget, data=None):
@@ -243,6 +264,56 @@ class PomodoroIndicator:
     def change_timer_menu_item_label(self, next_label):
         label = self.timer_item.child
         label.set_text(next_label)
+
+    def tw_dialog(self, widget):
+        window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+        window.set_usize(200, 100)
+        window.set_title("New Task Details")
+        window.connect("delete_event", gtk.mainquit)
+
+        vbox = gtk.VBox(gtk.FALSE, 0)
+        window.add(vbox)
+        vbox.show()
+
+        entry = gtk.Entry(50)
+        entry.connect("activate", self.enter_callback, entry)
+        entry.set_text("hello")
+        entry.append_text(" world")
+        entry.select_region(0, len(entry.get_text()))
+        vbox.pack_start(entry, gtk.TRUE, gtk.TRUE, 0)
+        entry.show()
+
+        hbox = gtk.HBox(gtk.FALSE, 0)
+        vbox.add(hbox)
+        hbox.show()
+
+        button = gtk.Button("Close")
+        button.connect_object("clicked", self.close_window, window)
+        vbox.pack_start(button, gtk.TRUE, gtk.TRUE, 0)
+        button.set_flags(gtk.CAN_DEFAULT)
+        button.grab_default()
+        button.show()
+        window.show()
+
+    def enter_callback(self, widget, entry):
+        entry_text = entry.get_text()
+        print "Entry contents: %s\n" % entry_text
+        self.w.task_add(entry_text, tag="in")
+        parent = widget.get_parent()
+        parent = parent.get_parent()
+        parent.destroy()
+
+    def close_window(self, widget):
+        box = widget.get_child()
+        children = box.get_children()
+        entry = children.pop()
+        while not isinstance(entry, gtk.Entry):
+            entry = children.pop()
+        entry_text = entry.get_text()
+        print "Entry contents: %s\n" % entry_text
+        self.w.task_add(entry_text, tag="in")
+
+        widget.destroy()
 
     def generate_notification(self):
         if self.current_state() == pomodoro_state.WORKING_STATE:
