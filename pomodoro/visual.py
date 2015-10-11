@@ -32,6 +32,7 @@ import os
 import gobject
 import gtk
 import appindicator
+#import appindicator_replacement as appindicator
 import pynotify
 import sys
 import wave
@@ -118,6 +119,16 @@ class PomodoroOSDNotificator:
         else:
             osd_box.show()
 
+    def notification(self):
+        message = "self.generate_message(state)"
+
+        osd_box = pynotify.Notification(
+            "Pomodoro",
+            message,
+            self.big_red_icon()
+        )
+        osd_box.show()
+
     def generate_message(self, status):
         message = status            # dodgy message
         if status == pomodoro_state.WORKING_STATE:
@@ -148,6 +159,11 @@ class PomodoroIndicator:
         self.ind.set_label("25:00")
         self.ind.set_attention_icon(self.idle_icon())
 
+        self.ind.icon.set_has_tooltip(True)
+        #following line only posible with -replacement
+        self.handler_id = self.ind.icon.connect(
+            "query-tooltip", self.icon_tooltip_callback)
+
         self.tw_installed = False
 
         home = os.path.expanduser("~/.taskrc")
@@ -171,6 +187,17 @@ class PomodoroIndicator:
             self.pomodoro.start()
             self.ind.set_icon(self.active_icon())
             self.redraw_menu()
+
+    def icon_tooltip_callback(self, widget, x, y, keyboard_mode, tooltip):
+        # set the text for the tooltip
+        tooltip.set_text("Undo your last action")
+        self.ind.icon.disconnect(self.handler_id)
+        # set an icon fot the tooltip
+        self.notificator.notification()
+        #tooltip.set_icon
+        # show the tooltip
+        self.handler_id = self.ind.icon.connect("query-tooltip", self.icon_tooltip_callback)
+        return True
 
     def attention_icon(self):
         return self.icon_directory + "tomato_grey.png"  # "indicator-messages"
