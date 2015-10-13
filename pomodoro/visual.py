@@ -31,8 +31,6 @@ Pomodoro's indicator
 import os
 import gobject
 import gtk
-import appindicator
-#import appindicator_replacement as appindicator
 import pynotify
 import sys
 import wave
@@ -150,18 +148,15 @@ class PomodoroIndicator:
         self.pomodoro = pomodoro_state.PomodoroMachine(work, short, longer)
         self.notificator = PomodoroOSDNotificator()
         self.icon_directory = configuration.icon_directory()
-        self.ind = appindicator.Indicator(
-            "pomodoro-indicator",
-            self.idle_icon(),
-            appindicator.CATEGORY_APPLICATION_STATUS)
-        self.ind.set_status(appindicator.STATUS_ACTIVE)
-        self.ind.set_attention_icon("new-messages-red")
-        self.ind.set_label("25:00")
-        self.ind.set_attention_icon(self.idle_icon())
 
-        self.ind.icon.set_has_tooltip(True)
-        #following line only posible with -replacement
-        self.handler_id = self.ind.icon.connect(
+        self.statusicon = gtk.StatusIcon()
+        self.statusicon.set_tooltip_text("Yum Extender: Working")
+        pixbuf = gtk.gdk.pixbuf_new_from_file(self.attention_icon())
+        self.statusicon.set_from_pixbuf(pixbuf)
+
+        self.statusicon.set_has_tooltip(True)
+        # following line only posible with -replacement
+        self.handler_id = self.statusicon.connect(
             "query-tooltip", self.icon_tooltip_callback)
 
         self.tw_installed = False
@@ -176,7 +171,6 @@ class PomodoroIndicator:
                 self.w = tw()
 
         self.menu_setup()
-        self.ind.set_menu(self.menu)
 
         self.timer_id = None
 
@@ -185,18 +179,25 @@ class PomodoroIndicator:
         if start is True:
             self.start_timer()
             self.pomodoro.start()
-            self.ind.set_icon(self.active_icon())
+            pixbuf = gtk.gdk.pixbuf_new_from_file(self.active_icon())
+            self.statusicon.set_from_pixbuf(pixbuf)
             self.redraw_menu()
 
     def icon_tooltip_callback(self, widget, x, y, keyboard_mode, tooltip):
         # set the text for the tooltip
-        tooltip.set_text("Undo your last action")
-        self.ind.icon.disconnect(self.handler_id)
-        # set an icon fot the tooltip
-        self.notificator.notification()
-        #tooltip.set_icon
+        self.tooltip = tooltip
+        time_remaining = self.pomodoro.state.max_time - \
+            self.pomodoro.state.elapsed_time
+        str_time_remaining = self.pomodoro.convert_time(time_remaining)
+        tip_content = (
+            "<b><big>Pomodoro </big></b>\n" +
+            self.pomodoro.state.current_state() + " " +
+            str_time_remaining + " remaining")
+        tooltip.set_markup(tip_content)
+        # set an icon for the tooltip
+        pixbuf = gtk.gdk.pixbuf_new_from_file(self.big_red_icon())
+        self.tooltip.set_icon(pixbuf)
         # show the tooltip
-        self.handler_id = self.ind.icon.connect("query-tooltip", self.icon_tooltip_callback)
         return True
 
     def attention_icon(self):
@@ -208,8 +209,12 @@ class PomodoroIndicator:
     def active_icon(self):
         return self.icon_directory + "tomato_24.png"  # "indicator-messages"
 
+    def big_red_icon(self):
+        return self.icon_directory + "tomato_32.png"
+
     def menu_setup(self):
         self.menu = gtk.Menu()
+        self.popup_menu = self.menu
         self.separator1 = gtk.SeparatorMenuItem()
         self.separator2 = gtk.SeparatorMenuItem()
         self.separator3 = gtk.SeparatorMenuItem()
@@ -267,6 +272,23 @@ class PomodoroIndicator:
             self.tw_item.hide()
             self.separator3.hide()
         self.redraw_menu()
+        self.statusicon.connect("popup-menu", self.on_popup)
+        self.statusicon.connect('activate', self.on_left_click)
+
+    def on_popup(self, icon, button, time):
+        self.popup_menu.popup(None, None, gtk.status_icon_position_menu, button,
+                              time, self.statusicon)
+
+    def on_left_click(self, event):
+        self.message("Status Icon Left Clicked")
+
+    def message(self, data=None):
+        "Function to display messages to the user."
+
+        msg = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
+                                gtk.MESSAGE_INFO, gtk.BUTTONS_OK, data)
+        msg.run()
+        msg.destroy()
 
     def button_pushed(self, widget, data=None):
         method = getattr(self, data.get_child().get_text().lower())
@@ -344,18 +366,19 @@ class PomodoroIndicator:
 
     def generate_notification(self):
         if self.current_state() == pomodoro_state.WORKING_STATE:
-            self.ind.set_status(appindicator.STATUS_ACTIVE)
+            pixbuf = gtk.gdk.pixbuf_new_from_file(self.active_icon())
+            self.statusicon.set_from_pixbuf(pixbuf)
         elif self.current_state() == pomodoro_state.RESTING_STATE:
-            self.ind.set_status(appindicator.STATUS_ATTENTION)
+            pixbuf = gtk.gdk.pixbuf_new_from_file(self.idle_icon())
+            self.statusicon.set_from_pixbuf(pixbuf)
         elif self.current_state() == pomodoro_state.LONG_RESTING_STATE:
-            self.ind.set_status(appindicator.STATUS_ATTENTION)
+            pixbuf = gtk.gdk.pixbuf_new_from_file(self.idle_icon())
+            self.statusicon.set_from_pixbuf(pixbuf)
 
         if PomodoroIndicator.gpause is True:
             self.stop_timer()
         self.notificator.notificate_with_sound(self.current_state(),
                                                self.start_timer)
-        # self.notificator.notificate_with_sound(self.current_state(),
-        #                                        self.toggle_pause)
 
     # Methods that interact with the PomodoroState collaborator.
     def update_timer(self):
@@ -374,7 +397,8 @@ class PomodoroIndicator:
     def start(self, widget, data=None):
         self.start_timer()
         self.pomodoro.start()
-        self.ind.set_icon(self.active_icon())
+        pixbuf = gtk.gdk.pixbuf_new_from_file(self.active_icon())
+        self.statusicon.set_from_pixbuf(pixbuf)
         self.redraw_menu()
 
     def pause(self, widget=None, data=None):
