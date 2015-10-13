@@ -117,16 +117,6 @@ class PomodoroOSDNotificator:
         else:
             osd_box.show()
 
-    def notification(self):
-        message = "self.generate_message(state)"
-
-        osd_box = pynotify.Notification(
-            "Pomodoro",
-            message,
-            self.big_red_icon()
-        )
-        osd_box.show()
-
     def generate_message(self, status):
         message = status            # dodgy message
         if status == pomodoro_state.WORKING_STATE:
@@ -150,7 +140,6 @@ class PomodoroIndicator:
         self.icon_directory = configuration.icon_directory()
 
         self.statusicon = gtk.StatusIcon()
-        self.statusicon.set_tooltip_text("Yum Extender: Working")
         pixbuf = gtk.gdk.pixbuf_new_from_file(self.attention_icon())
         self.statusicon.set_from_pixbuf(pixbuf)
 
@@ -283,7 +272,7 @@ class PomodoroIndicator:
         self.message("Status Icon Left Clicked")
 
     def message(self, data=None):
-        "Function to display messages to the user."
+        "Pomodoro left click."
 
         msg = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
                                 gtk.MESSAGE_INFO, gtk.BUTTONS_OK, data)
