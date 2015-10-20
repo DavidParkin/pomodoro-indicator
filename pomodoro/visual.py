@@ -159,6 +159,15 @@ class PomodoroIndicator:
             else:
                 self.w = tw()
 
+            try:
+                from app.twcurrent import TwCurrent
+                twc = TwCurrent()
+                current = twc.get_current()
+                import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+                self.desc = 'Current task: ' + current['description']
+            except:
+                pass
+
         self.menu_setup()
 
         self.timer_id = None
@@ -181,7 +190,9 @@ class PomodoroIndicator:
         tip_content = (
             "<b><big>Pomodoro </big></b>\n" +
             self.pomodoro.state.current_state() + " " +
-            str_time_remaining + " remaining")
+            str_time_remaining + " remaining\n")
+        if self.desc:
+            tip_content += self.desc
         tooltip.set_markup(tip_content)
         # set an icon for the tooltip
         pixbuf = gtk.gdk.pixbuf_new_from_file(self.big_red_icon())
