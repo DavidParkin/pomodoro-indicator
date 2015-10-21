@@ -58,10 +58,12 @@ parser.add_argument('--start', action='store_true',
                     help="Start timer immediately")
 parser.add_argument('--pause', action='store_true',
                     help="Pause and require confirmation before rest or work")
+parser.add_argument('--debug', action='store_true',
+                    help="Debug mode - uses test taskwarrior file")
 args = parser.parse_args()
 print (args)
 
 
 indicator = visual.PomodoroIndicator(args.work, args.short, args.long,
-                                     args.start, args.pause)
+                                     args.start, args.pause, args.debug)
 indicator.main()

@@ -43,7 +43,8 @@ from taskw import TaskWarriorShellout as tw
 # http://www.softicons.com/free-icons/food-drinks-icons/veggies-icons-by-icon-icon/tomato-icon
 
 
-class PomodoroOSDNotificator:
+class PomodoroOSDNotificator(object):
+    """ Provide a panel indicator and notifier for Pomodora timer"""
 
     loop = None
 
@@ -109,7 +110,6 @@ class PomodoroOSDNotificator:
             osd_box.add_action("action_go", "Ready?",
                                resume)
             osd_box.set_timeout(pynotify.EXPIRES_NEVER)
-
             osd_box.show()
             global loop
             loop = gobject.MainLoop()
@@ -133,7 +133,7 @@ class PomodoroIndicator:
 
     gpause = False
 
-    def __init__(self, work, short, longer, start, pause):
+    def __init__(self, work, short, longer, start, pause, debug):
         PomodoroIndicator.gpause = pause
         self.pomodoro = pomodoro_state.PomodoroMachine(work, short, longer)
         self.notificator = PomodoroOSDNotificator()
@@ -154,16 +154,16 @@ class PomodoroIndicator:
         if os.path.exists(home):
             self.tw_installed = True
             test = os.path.expanduser("~/.taskrc_test")
-            if os.path.exists(test):
+            if debug is True:
                 self.w = tw(config_filename="~/.taskrc_test")
             else:
                 self.w = tw()
+                test = None
 
             try:
                 from app.twcurrent import TwCurrent
-                twc = TwCurrent()
+                twc = TwCurrent(test)
                 current = twc.get_current()
-                import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
                 self.desc = 'Current task: ' + current['description']
             except:
                 pass
@@ -193,7 +193,7 @@ class PomodoroIndicator:
             str_time_remaining + " remaining\n")
         if self.desc:
             tip_content += self.desc
-        tooltip.set_markup(tip_content)
+        self.tooltip.set_markup(tip_content)
         # set an icon for the tooltip
         pixbuf = gtk.gdk.pixbuf_new_from_file(self.big_red_icon())
         self.tooltip.set_icon(pixbuf)
@@ -276,8 +276,9 @@ class PomodoroIndicator:
         self.statusicon.connect('activate', self.on_left_click)
 
     def on_popup(self, icon, button, time):
-        self.popup_menu.popup(None, None, gtk.status_icon_position_menu, button,
-                              time, self.statusicon)
+        self.popup_menu.popup(
+            None, None, gtk.status_icon_position_menu, button,
+            time, self.statusicon)
 
     def on_left_click(self, event):
         self.message("Status Icon Left Clicked")
