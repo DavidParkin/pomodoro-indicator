@@ -285,7 +285,6 @@ class PomodoroIndicator:
 
     def message(self, data=None):
         "Pomodoro left click."
-
         msg = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
                                 gtk.MESSAGE_INFO, gtk.BUTTONS_OK, data)
         msg.run()
